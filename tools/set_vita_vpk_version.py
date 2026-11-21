@@ -41,20 +41,33 @@ def add_target_link_dependencies(
     if signature not in {"plain", "keyword"}:
         raise VersionPatchError("CMake link signature must be plain or keyword")
 
-    # CMake allows targets to be named through variables. Avoid trying to
-    # infer signatures from arbitrary CMake expressions; the build profile
-    # chooses the signature explicitly and CMake verifies it at configure time.
+    # This Vita app has one executable target. Its CMake declaration may use
+    # a variable as the target name, so collect the link items from all
+    # target_link_libraries blocks instead of guessing how that variable expands.
+    existing: set[str] = set()
+    blocks = re.findall(
+        r"\\btarget_link_libraries\\s*\\((.*?)\\)",
+        source,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    structural = {"PRIVATE", "PUBLIC", "INTERFACE", "DEBUG", "OPTIMIZED", "GENERAL"}
+    for block in blocks:
+        tokens = re.findall(r"[A-Za-z0-9_+-]+", block)
+        for token in tokens[1:]:
+            if token.upper() not in structural:
+                existing.add(token)
+
     missing: list[str] = []
     for library in libraries:
         if not re.fullmatch(r"[A-Za-z0-9_+-]+", library):
             raise VersionPatchError("invalid linker library name: %s" % library)
-        if library not in missing:
+        if library not in existing and library not in missing:
             missing.append(library)
 
     if missing:
-        source = source.rstrip() + "\n\n# VitaSDK static dependency closure for curl/OpenSSL.\n"
+        source = source.rstrip() + "\\n\\n# VitaSDK static dependency closure for curl/OpenSSL.\\n"
         scope = "PRIVATE " if signature == "keyword" else ""
-        source += "target_link_libraries(%s %s%s)\n" % (target, scope, " ".join(missing))
+        source += "target_link_libraries(%s %s%s)\\n" % (target, scope, " ".join(missing))
     return source
 
 def main() -> int:
