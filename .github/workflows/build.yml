@@ -32,6 +32,9 @@ jobs:
       - name: Validate plugin catalog
         run: python3 tools/validate_catalog.py
 
+      - name: Test VitaSDK package-version normalization
+        run: python3 -m unittest tools/test_vita_vpk_version.py -v
+
       - name: Run host-side smoke tests
         run: tools/test_host.sh
 
@@ -63,7 +66,9 @@ jobs:
         run: curl --fail --location --proto '=https' --tlsv1.2 --retry 3 https://curl.se/ca/cacert.pem --output cacert.pem
 
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="$VITASDK/share/vita.toolchain.cmake"
+        run: |
+          python3 tools/set_vita_vpk_version.py CMakeLists.txt --version 00.21
+          cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="$VITASDK/share/vita.toolchain.cmake"
 
       - name: Build VPK
         run: cmake --build build --parallel
