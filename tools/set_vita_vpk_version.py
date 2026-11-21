@@ -32,11 +32,17 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("cmake_file", nargs="?", default="CMakeLists.txt")
     parser.add_argument("--version", required=True, help="VitaSDK package version in ##.## format")
+    parser.add_argument("--target", default=None, help="CMake executable target receiving extra static libraries")
+    parser.add_argument("--link-library", action="append", default=[], help="Additional target library (repeatable)")
     args = parser.parse_args()
     path = Path(args.cmake_file)
     try:
         original = path.read_text(encoding="utf-8")
         updated = normalize_vpk_version(original, args.version)
+        if args.link_library:
+            if not args.target:
+                raise VersionPatchError("--target is required when --link-library is used")
+            updated = add_target_link_dependencies(updated, args.target, args.link_library)
         path.write_text(updated, encoding="utf-8")
     except (OSError, UnicodeError, VersionPatchError) as exc:
         print("Vita VPK version normalization: ERROR: %s" % exc, file=sys.stderr)
