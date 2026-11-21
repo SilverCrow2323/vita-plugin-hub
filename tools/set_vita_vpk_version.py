@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Normalize only the VitaSDK VPK VERSION argument, preserving semantic project versions."""
+"""Normalize VitaSDK VPK metadata and close required static-library dependencies."""
 
 from __future__ import annotations
 
@@ -9,7 +9,10 @@ import sys
 from pathlib import Path
 
 VPK_VERSION = re.compile(r"^[0-9]{2}\.[0-9]{2}$")
-CALL = re.compile(r"(vita_create_vpk\s*\(.*?\bVERSION\s+)([^\s)]+)", re.IGNORECASE | re.DOTALL)
+VPK_CALL = re.compile(
+    r"(vita_create_vpk\s*\(.*?\bVERSION\s+)([^\s)]+)",
+    re.IGNORECASE | re.DOTALL,
+)
 
 
 class VersionPatchError(ValueError):
@@ -19,13 +22,45 @@ class VersionPatchError(ValueError):
 def normalize_vpk_version(source: str, version: str) -> str:
     if not VPK_VERSION.fullmatch(version):
         raise VersionPatchError("Vita package version must use the ##.## format")
-    call_count = len(re.findall(r"\bvita_create_vpk\s*\(", source, flags=re.IGNORECASE))
-    if call_count != 1:
+    if source.lower().count("vita_create_vpk") != 1:
         raise VersionPatchError("expected exactly one vita_create_vpk declaration")
-    result, count = CALL.subn(lambda match: match.group(1) + version, source, count=1)
+    result, count = VPK_CALL.subn(lambda match: match.group(1) + version, source, count=1)
     if count != 1:
         raise VersionPatchError("vita_create_vpk declaration has no VERSION argument")
     return result
+
+
+def add_target_link_dependencies(source: str, target: str, libraries: list[str]) -> str:
+    if not re.fullmatch(r"[A-Za-z0-9_+-]+", target):
+        raise VersionPatchError("invalid CMake target name")
+
+    executable = re.compile(
+        r"\badd_executable\s*\(\s*" + re.escape(target) + r"(?=[\s)])",
+        re.IGNORECASE,
+    )
+    if not executable.search(source):
+        raise VersionPatchError("expected add_executable declaration for target %s" % target)
+
+    link_blocks = re.findall(
+        r"\btarget_link_libraries\s*\(\s*" + re.escape(target) + r"\b(.*?)\)",
+        source,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    existing: set[str] = set()
+    for block in link_blocks:
+        existing.update(re.findall(r"[A-Za-z0-9_+-]+", block))
+
+    missing: list[str] = []
+    for library in libraries:
+        if not re.fullmatch(r"[A-Za-z0-9_+-]+", library):
+            raise VersionPatchError("invalid linker library name: %s" % library)
+        if library not in existing and library not in missing:
+            missing.append(library)
+
+    if missing:
+        source = source.rstrip() + "\n\n# VitaSDK static dependency closure for curl/OpenSSL.\n"
+        source += "target_link_libraries(%s PRIVATE %s)\n" % (target, " ".join(missing))
+    return source
 
 
 def main() -> int:
@@ -36,6 +71,7 @@ def main() -> int:
     parser.add_argument("--link-library", action="append", default=[], help="Additional target library (repeatable)")
     args = parser.parse_args()
     path = Path(args.cmake_file)
+
     try:
         original = path.read_text(encoding="utf-8")
         updated = normalize_vpk_version(original, args.version)
@@ -45,9 +81,13 @@ def main() -> int:
             updated = add_target_link_dependencies(updated, args.target, args.link_library)
         path.write_text(updated, encoding="utf-8")
     except (OSError, UnicodeError, VersionPatchError) as exc:
-        print("Vita VPK version normalization: ERROR: %s" % exc, file=sys.stderr)
+        print("Vita CMake normalization: ERROR: %s" % exc, file=sys.stderr)
         return 1
-    print("Vita VPK package version normalized to %s; semantic project version left untouched." % args.version)
+
+    print(
+        "Vita CMake normalization: VPK version %s; additional static libraries: %s"
+        % (args.version, ", ".join(args.link_library) or "none")
+    )
     return 0
 
 
