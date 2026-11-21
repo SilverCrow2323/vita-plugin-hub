@@ -19,7 +19,7 @@ class VersionPatchError(ValueError):
 def normalize_vpk_version(source: str, version: str) -> str:
     if not VPK_VERSION.fullmatch(version):
         raise VersionPatchError("Vita package version must use the ##.## format")
-    call_count = len(re.findall(r"\\bvita_create_vpk\\s*\\(", source, flags=re.IGNORECASE))
+    call_count = len(re.findall(r"\bvita_create_vpk\s*\(", source, flags=re.IGNORECASE))
     if call_count != 1:
         raise VersionPatchError("expected exactly one vita_create_vpk declaration")
     result, count = CALL.subn(lambda match: match.group(1) + version, source, count=1)
