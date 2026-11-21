@@ -39,7 +39,7 @@ class VitaVpkVersionTests(unittest.TestCase):
             normalize_vpk_version(source, "00.21")
 
     def test_adds_missing_static_dependency_closure(self):
-        result = add_target_link_dependencies(FIXTURE, "VitaPluginHub", ["zstd", "pthread"])
+        result = add_target_link_dependencies(FIXTURE, "VitaPluginHub", ["zstd", "pthread"], signature="keyword")
         self.assertIn("target_link_libraries(VitaPluginHub PRIVATE zstd pthread)", result)
 
     def test_adds_dependencies_to_plain_signature_without_keywords(self):
@@ -47,7 +47,7 @@ class VitaVpkVersionTests(unittest.TestCase):
             "target_link_libraries(VitaPluginHub PRIVATE",
             "target_link_libraries(VitaPluginHub",
         )
-        result = add_target_link_dependencies(plain_fixture, "VitaPluginHub", ["zstd", "pthread"])
+        result = add_target_link_dependencies(plain_fixture, "VitaPluginHub", ["zstd", "pthread"], signature="plain")
         self.assertIn("target_link_libraries(VitaPluginHub zstd pthread)", result)
 
     def test_does_not_duplicate_existing_library(self):
@@ -59,8 +59,12 @@ class VitaVpkVersionTests(unittest.TestCase):
         self.assertEqual(link_lines.count("pthread"), 1)
         self.assertEqual(link_lines.count("curl"), 1)
 
+    def test_rejects_unknown_signature(self):
+        with self.assertRaises(VersionPatchError):
+            add_target_link_dependencies(FIXTURE, "VitaPluginHub", ["zstd"], signature="auto")
+
     def test_emits_explicit_target_link_for_cmake_to_resolve(self):
-        result = add_target_link_dependencies(FIXTURE, "OtherTarget", ["zstd"])
+        result = add_target_link_dependencies(FIXTURE, "OtherTarget", ["zstd"], signature="keyword")
         self.assertIn("target_link_libraries(OtherTarget PRIVATE zstd)", result)
 
 
