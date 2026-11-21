@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import stat
 import struct
 import sys
@@ -87,8 +88,8 @@ def verify_vpk(path: str, title_id: str, title: str, app_version: str) -> Dict[s
             raise VpkError("VPK contents mismatch (missing=%r extra=%r)" % (missing, extra))
 
         for info in infos:
-            path = PurePosixPath(info.filename)
-            if info.filename.startswith("/") or "\\" in info.filename or ".." in path.parts:
+            entry_path = PurePosixPath(info.filename)
+            if info.filename.startswith("/") or "\\" in info.filename or ".." in entry_path.parts:
                 raise VpkError("unsafe VPK path: %s" % info.filename)
             mode = (info.external_attr >> 16) & 0xFFFF
             if stat.S_ISLNK(mode):
@@ -125,7 +126,7 @@ def verify_vpk(path: str, title_id: str, title: str, app_version: str) -> Dict[s
 
         return {
             "entries": len(infos),
-            "vpk_bytes": __import__("os").path.getsize(path),
+            "vpk_bytes": os.path.getsize(path),
             "eboot_bytes": len(executable),
             "title": sfo["TITLE"],
             "title_id": sfo["TITLE_ID"],
