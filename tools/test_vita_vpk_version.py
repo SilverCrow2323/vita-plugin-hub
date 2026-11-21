@@ -64,6 +64,12 @@ class VitaVpkVersionTests(unittest.TestCase):
         self.assertIn("target_link_libraries(VitaPluginHub pthread zstd)", link_lines)
         self.assertEqual(link_lines.count("curl"), 1)
 
+    def test_adds_vita2d_app_manager_stub_dependency(self):
+        result = add_target_link_dependencies(
+            FIXTURE, "VitaPluginHub", ["SceAppMgr_stub"], signature="plain"
+        )
+        self.assertIn("target_link_libraries(VitaPluginHub SceAppMgr_stub)", result)
+
     def test_rejects_unknown_signature(self):
         with self.assertRaises(VersionPatchError):
             add_target_link_dependencies(FIXTURE, "VitaPluginHub", ["zstd"], signature="auto")
