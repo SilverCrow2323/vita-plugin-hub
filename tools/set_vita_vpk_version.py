@@ -43,8 +43,12 @@ def add_target_link_dependencies(source: str, target: str, libraries: list[str])
         flags=re.IGNORECASE | re.DOTALL,
     )
     existing: set[str] = set()
+    uses_keyword_signature = False
     for block in link_blocks:
-        existing.update(re.findall(r"[A-Za-z0-9_+-]+", block))
+        tokens = re.findall(r"[A-Za-z0-9_+-]+", block)
+        existing.update(tokens)
+        if any(token.upper() in {"PRIVATE", "PUBLIC", "INTERFACE"} for token in tokens):
+            uses_keyword_signature = True
 
     missing: list[str] = []
     for library in libraries:
@@ -55,7 +59,8 @@ def add_target_link_dependencies(source: str, target: str, libraries: list[str])
 
     if missing:
         source = source.rstrip() + "\n\n# VitaSDK static dependency closure for curl/OpenSSL.\n"
-        source += "target_link_libraries(%s PRIVATE %s)\n" % (target, " ".join(missing))
+        scope = "PRIVATE " if uses_keyword_signature or not link_blocks else ""
+        source += "target_link_libraries(%s %s%s)\n" % (target, scope, " ".join(missing))
     return source
 
 
