@@ -51,9 +51,9 @@ class VitaVpkVersionTests(unittest.TestCase):
         self.assertEqual(link_lines.count("pthread"), 1)
         self.assertEqual(link_lines.count("curl"), 1)
 
-    def test_rejects_unknown_target(self):
-        with self.assertRaises(VersionPatchError):
-            add_target_link_dependencies(FIXTURE, "OtherTarget", ["zstd"])
+    def test_emits_explicit_target_link_for_cmake_to_resolve(self):
+        result = add_target_link_dependencies(FIXTURE, "OtherTarget", ["zstd"])
+        self.assertIn("target_link_libraries(OtherTarget PRIVATE zstd)", result)
 
 
 if __name__ == "__main__":
