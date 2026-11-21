@@ -40,7 +40,7 @@ class VitaVpkVersionTests(unittest.TestCase):
 
     def test_adds_missing_static_dependency_closure(self):
         result = add_target_link_dependencies(FIXTURE, "VitaPluginHub", ["zstd", "pthread"])
-        self.assertIn("target_link_libraries(VitaPluginHub PRIVATE zstd pthread)", result)
+        self.assertIn("target_link_libraries(VitaPluginHub zstd pthread)", result)
 
     def test_does_not_duplicate_existing_library(self):
         result = add_target_link_dependencies(FIXTURE, "VitaPluginHub", ["curl", "pthread"])
