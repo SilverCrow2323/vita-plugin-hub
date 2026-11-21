@@ -34,13 +34,9 @@ def add_target_link_dependencies(source: str, target: str, libraries: list[str])
     if not re.fullmatch(r"[A-Za-z0-9_+-]+", target):
         raise VersionPatchError("invalid CMake target name")
 
-    executable = re.compile(
-        r"\badd_executable\s*\(\s*" + re.escape(target) + r"(?=[\s)])",
-        re.IGNORECASE,
-    )
-    if not executable.search(source):
-        raise VersionPatchError("expected add_executable declaration for target %s" % target)
-
+    # The source bundle may declare the executable via a CMake variable
+    # (for example add_executable(${APP_TARGET} ...). Do not try to parse
+    # arbitrary CMake expressions here; CMake itself validates target names.
     link_blocks = re.findall(
         r"\btarget_link_libraries\s*\(\s*" + re.escape(target) + r"\b(.*?)\)",
         source,
