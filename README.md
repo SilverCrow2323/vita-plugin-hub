@@ -6,34 +6,73 @@
 - Reference device: PS Vita OLED (PCH-1000), firmware 3.65 Ensō, SD2Vita + Sony Memory Card
 - Interface language: English
 - Application title ID: `VPHB00001`
-- Planned release line: `0.2.1`
+- Development snapshot: `0.2.1-rc.1`
 
-## Repository status
+## Project status
 
-The dedicated repository has been initialized. The complete source snapshot and local validation results are prepared in the accompanying development workspace, but the application source tree has not yet been committed here.
+The complete application source snapshot is versioned in this repository under `.payload/` as six Base64 parts. GitHub Actions reconstructs the source tree before validation and VitaSDK compilation.
 
-No VPK release is published. The application still requires a real VitaSDK cross-build and a smoke test on a PS Vita before a release candidate can be declared.
+**No stable release or console-validated VPK is published yet.** The native application still requires a successful VitaSDK build and a smoke test on real hardware. The current development build intentionally does not install or modify plugins automatically.
 
-## Product scope
+## Included functionality
 
-- Offline-first curated catalog of official upstream plugin projects.
-- Separate platform handling for Vita taiHEN and Adrenaline/PSP.
-- GitHub release lookup and guarded download of official release assets.
-- Read-only taiHEN and Adrenaline configuration inspection.
-- Timestamped configuration backups.
-- Planned safe plugin management with dependency, conflict and rollback handling.
+- Native PS Vita UI in English.
+- Offline-first catalog with categories and separate Vita taiHEN / Adrenaline-PSP platforms.
+- Plugin descriptions, upstream repositories, compatibility hints and dependencies.
+- GitHub release lookup and guarded official release-asset downloads.
+- Download progress, certificate verification, origin checks and SHA-256 verification when upstream publishes a digest.
+- Read-only taiHEN configuration inspection and missing-file detection.
+- Read-only Adrenaline plugin-list inspection.
+- Timestamped backups of available taiHEN and Ensō configuration files.
 
-## Safety policy
+## Safety limitations
 
-- Downloads are saved for review and are never installed or executed automatically in the current development build.
-- Configuration inspection is read-only.
-- Vita taiHEN and Adrenaline/PSP plugin systems are kept separate.
-- Compatibility metadata is advisory and must be checked against upstream documentation.
+- Downloaded assets are saved for review, never executed or installed automatically.
+- taiHEN config and Adrenaline plugin lists are currently read-only.
+- Dependency and conflict metadata is advisory; unreviewed install mappings remain locked.
+- Compatibility claims must be checked against the upstream project's documentation.
+- YAMT, Ensō boot configuration, Vita and PSP plugin systems are treated as separate installation domains.
 
-## Build
+## Reconstruct the source locally
 
-The source uses VitaSDK, CMake, libvita2d, libcurl and OpenSSL. Build instructions will be added with the committed source tree.
+From the repository root:
+
+```bash
+mkdir -p /tmp/vitapluginhub-source
+cat .payload/vph-source-*.b64 | base64 --decode | tar -xz --no-same-owner -C /tmp/vitapluginhub-source
+cd /tmp/vitapluginhub-source
+```
+
+The archive contains the C/VitaSDK source, catalog, tests and technical documentation. The workflow file and repository-level README/changelog remain directly visible in the repository.
+
+## Build with VitaSDK
+
+Install VitaSDK and its packages, then:
+
+```bash
+export VITASDK=/usr/local/vitasdk
+export PATH="$VITASDK/bin:$PATH"
+vdpm install libvita2d curl openssl zlib
+curl --fail --location --proto '=https' --tlsv1.2 https://curl.se/ca/cacert.pem -o cacert.pem
+cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="$VITASDK/share/vita.toolchain.cmake"
+cmake --build build --parallel
+```
+
+The expected output is `build/VitaPluginHub.vpk`. The GitHub Actions workflow performs catalog checks, host smoke tests, VitaSDK compilation and release publication for pushed `v*` tags.
+
+## Controls
+
+| Input | Action |
+|---|---|
+| D-pad Up / Down | Navigate |
+| D-pad Left / Right | Change category / release asset |
+| Cross | Select / open / download selected asset |
+| Circle | Back |
+| Triangle | Cycle platform filter |
+| Select | Search |
+| Square | Context action (clear search / check release / backup) |
+| Start | Return Home |
 
 ## License
 
-The VitaPluginHub source is licensed under the MIT License. Third-party plugins remain the property of their respective authors and retain their own licenses.
+VitaPluginHub source: MIT. Third-party plugins remain the property of their respective authors and retain their own licenses.
