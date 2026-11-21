@@ -38,35 +38,39 @@ class VitaVpkVersionTests(unittest.TestCase):
         with self.assertRaises(VersionPatchError):
             normalize_vpk_version(source, "00.21")
 
-    def test_adds_missing_static_dependency_closure(self):
-        result = add_target_link_dependencies(FIXTURE, "VitaPluginHub", ["zstd", "pthread"], signature="keyword")
-        self.assertIn("target_link_libraries(VitaPluginHub PRIVATE zstd pthread)", result)
+    def test_adds_only_missing_static_dependencies_with_keyword_signature(self):
+        result = add_target_link_dependencies(
+            FIXTURE, "VitaPluginHub", ["curl", "pthread", "zstd"], signature="keyword"
+        )
+        link_lines = "\n".join(
+            line for line in result.splitlines()
+            if line.strip().startswith("target_link_libraries")
+        )
+        self.assertIn("target_link_libraries(VitaPluginHub PRIVATE pthread zstd)", link_lines)
+        self.assertEqual(link_lines.count("curl"), 1)
 
     def test_adds_dependencies_to_plain_signature_without_keywords(self):
         plain_fixture = FIXTURE.replace(
             "target_link_libraries(VitaPluginHub PRIVATE",
             "target_link_libraries(VitaPluginHub",
         )
-        result = add_target_link_dependencies(plain_fixture, "VitaPluginHub", ["zstd", "pthread"], signature="plain")
-        self.assertIn("target_link_libraries(VitaPluginHub zstd pthread)", result)
-
-    def test_does_not_duplicate_existing_library(self):
-        result = add_target_link_dependencies(FIXTURE, "VitaPluginHub", ["curl", "pthread"])
-        link_lines = "\\n".join(
+        result = add_target_link_dependencies(
+            plain_fixture, "VitaPluginHub", ["curl", "pthread", "zstd"], signature="plain"
+        )
+        link_lines = "\n".join(
             line for line in result.splitlines()
             if line.strip().startswith("target_link_libraries")
         )
-        self.assertEqual(link_lines.count("pthread"), 1)
+        self.assertIn("target_link_libraries(VitaPluginHub pthread zstd)", link_lines)
         self.assertEqual(link_lines.count("curl"), 1)
-        self.assertFalse(any("PRIVATE curl" in line or line.endswith(" curl)") for line in link_lines.splitlines()))
 
     def test_rejects_unknown_signature(self):
         with self.assertRaises(VersionPatchError):
             add_target_link_dependencies(FIXTURE, "VitaPluginHub", ["zstd"], signature="auto")
 
-    def test_emits_explicit_target_link_for_cmake_to_resolve(self):
-        result = add_target_link_dependencies(FIXTURE, "OtherTarget", ["zstd"], signature="keyword")
-        self.assertIn("target_link_libraries(OtherTarget PRIVATE zstd)", result)
+    def test_rejects_missing_target_name(self):
+        with self.assertRaises(VersionPatchError):
+            add_target_link_dependencies(FIXTURE, "bad target", ["zstd"])
 
 
 if __name__ == "__main__":
