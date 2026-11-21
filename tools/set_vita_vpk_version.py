@@ -30,39 +30,32 @@ def normalize_vpk_version(source: str, version: str) -> str:
     return result
 
 
-def add_target_link_dependencies(source: str, target: str, libraries: list[str]) -> str:
+def add_target_link_dependencies(
+    source: str,
+    target: str,
+    libraries: list[str],
+    signature: str = "plain",
+) -> str:
     if not re.fullmatch(r"[A-Za-z0-9_+-]+", target):
         raise VersionPatchError("invalid CMake target name")
+    if signature not in {"plain", "keyword"}:
+        raise VersionPatchError("CMake link signature must be plain or keyword")
 
-    # The source bundle may declare the executable via a CMake variable
-    # (for example add_executable(${APP_TARGET} ...). Do not try to parse
-    # arbitrary CMake expressions here; CMake itself validates target names.
-    link_blocks = re.findall(
-        r"\btarget_link_libraries\s*\(\s*" + re.escape(target) + r"\b(.*?)\)",
-        source,
-        flags=re.IGNORECASE | re.DOTALL,
-    )
-    existing: set[str] = set()
-    uses_keyword_signature = False
-    for block in link_blocks:
-        tokens = re.findall(r"[A-Za-z0-9_+-]+", block)
-        existing.update(tokens)
-        if any(token.upper() in {"PRIVATE", "PUBLIC", "INTERFACE"} for token in tokens):
-            uses_keyword_signature = True
-
+    # CMake allows targets to be named through variables. Avoid trying to
+    # infer signatures from arbitrary CMake expressions; the build profile
+    # chooses the signature explicitly and CMake verifies it at configure time.
     missing: list[str] = []
     for library in libraries:
         if not re.fullmatch(r"[A-Za-z0-9_+-]+", library):
             raise VersionPatchError("invalid linker library name: %s" % library)
-        if library not in existing and library not in missing:
+        if library not in missing:
             missing.append(library)
 
     if missing:
         source = source.rstrip() + "\n\n# VitaSDK static dependency closure for curl/OpenSSL.\n"
-        scope = "PRIVATE " if uses_keyword_signature or not link_blocks else ""
+        scope = "PRIVATE " if signature == "keyword" else ""
         source += "target_link_libraries(%s %s%s)\n" % (target, scope, " ".join(missing))
     return source
-
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -70,6 +63,7 @@ def main() -> int:
     parser.add_argument("--version", required=True, help="VitaSDK package version in ##.## format")
     parser.add_argument("--target", default=None, help="CMake executable target receiving extra static libraries")
     parser.add_argument("--link-library", action="append", default=[], help="Additional target library (repeatable)")
+    parser.add_argument("--signature", choices=("plain", "keyword"), default="plain", help="CMake target_link_libraries signature used by the source project")
     args = parser.parse_args()
     path = Path(args.cmake_file)
 
@@ -79,7 +73,7 @@ def main() -> int:
         if args.link_library:
             if not args.target:
                 raise VersionPatchError("--target is required when --link-library is used")
-            updated = add_target_link_dependencies(updated, args.target, args.link_library)
+            updated = add_target_link_dependencies(updated, args.target, args.link_library, args.signature)
         path.write_text(updated, encoding="utf-8")
     except (OSError, UnicodeError, VersionPatchError) as exc:
         print("Vita CMake normalization: ERROR: %s" % exc, file=sys.stderr)
