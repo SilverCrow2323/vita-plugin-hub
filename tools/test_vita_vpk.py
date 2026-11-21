@@ -16,10 +16,15 @@ def make_sfo(values):
     for key, value in values.items():
         key_offset = len(keys)
         keys.extend(key.encode("ascii") + b"\0")
-        raw = value.encode("utf-8") + b"\0"
+        if isinstance(value, int):
+            fmt = 0x0404
+            raw = struct.pack("<I", value)
+        else:
+            fmt = 0x0204
+            raw = value.encode("utf-8") + b"\0"
         data_offset = len(data)
         data.extend(raw)
-        entries.append((key_offset, 0x0204, len(raw), len(raw), data_offset))
+        entries.append((key_offset, fmt, len(raw), len(raw), data_offset))
     key_table = SFO_HEADER.size + len(entries) * SFO_ENTRY.size
     data_table = key_table + len(keys)
     header = SFO_HEADER.pack(SFO_MAGIC, SFO_VERSION, key_table, data_table, len(entries))
@@ -33,6 +38,7 @@ def make_vpk(path, title_id="VPHB00001", extra=None):
         "TITLE_ID": title_id,
         "APP_VER": "00.21",
         "VERSION": "00.00",
+        "ATTRIBUTE": 0x00008000,
     }
     files = {
         "sce_sys/param.sfo": make_sfo(values),
@@ -49,7 +55,7 @@ def make_vpk(path, title_id="VPHB00001", extra=None):
 
 
 class VitaVpkVerificationTests(unittest.TestCase):
-    def test_accepts_expected_vpk_identity(self):
+    def test_accepts_expected_vpk_identity_and_numeric_sfo_fields(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "app.vpk"
             make_vpk(path)
@@ -72,7 +78,7 @@ class VitaVpkVerificationTests(unittest.TestCase):
             with self.assertRaisesRegex(VpkError, "APP_VER mismatch"):
                 verify_vpk(str(path), "VPHB00001", "VitaPluginHub", "00.20")
 
-    def test_rejects_missing_required_asset(self):
+    def test_rejects_missing_certificate(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "app.vpk"
             make_vpk(path, extra={"cacert.pem": b"no certificate"})
