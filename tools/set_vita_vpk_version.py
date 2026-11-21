@@ -46,7 +46,7 @@ def add_target_link_dependencies(
     # target_link_libraries blocks instead of guessing how that variable expands.
     existing: set[str] = set()
     blocks = re.findall(
-        r"\\btarget_link_libraries\\s*\\((.*?)\\)",
+        r"\btarget_link_libraries\s*\((.*?)\)",
         source,
         flags=re.IGNORECASE | re.DOTALL,
     )
@@ -65,10 +65,11 @@ def add_target_link_dependencies(
             missing.append(library)
 
     if missing:
-        source = source.rstrip() + "\\n\\n# VitaSDK static dependency closure for curl/OpenSSL.\\n"
+        source = source.rstrip() + "\n\n# VitaSDK static dependency closure for curl/OpenSSL.\n"
         scope = "PRIVATE " if signature == "keyword" else ""
-        source += "target_link_libraries(%s %s%s)\\n" % (target, scope, " ".join(missing))
+        source += "target_link_libraries(%s %s%s)\n" % (target, scope, " ".join(missing))
     return source
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -76,7 +77,8 @@ def main() -> int:
     parser.add_argument("--version", required=True, help="VitaSDK package version in ##.## format")
     parser.add_argument("--target", default=None, help="CMake executable target receiving extra static libraries")
     parser.add_argument("--link-library", action="append", default=[], help="Additional target library (repeatable)")
-    parser.add_argument("--signature", choices=("plain", "keyword"), default="plain", help="CMake target_link_libraries signature used by the source project")
+    parser.add_argument("--signature", choices=("plain", "keyword"), default="plain",
+                        help="CMake target_link_libraries signature used by the source project")
     args = parser.parse_args()
     path = Path(args.cmake_file)
 
