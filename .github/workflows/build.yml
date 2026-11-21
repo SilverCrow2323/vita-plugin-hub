@@ -35,6 +35,9 @@ jobs:
       - name: Test VitaSDK package-version normalization
         run: python3 -m unittest tools/test_vita_vpk_version.py -v
 
+      - name: Test Vita VPK package verifier
+        run: python3 -m unittest tools/test_vita_vpk.py -v
+
       - name: Run host-side smoke tests
         run: tools/test_host.sh
 
@@ -72,6 +75,9 @@ jobs:
 
       - name: Build VPK
         run: cmake --build build --parallel
+
+      - name: Verify VPK layout, assets and SFO identity
+        run: python3 tools/verify_vita_vpk.py build/VitaPluginHub.vpk --title-id VPHB00001 --title VitaPluginHub --app-version 00.21
 
       - name: Create SHA-256 checksum
         run: cd build && sha256sum VitaPluginHub.vpk > VitaPluginHub.vpk.sha256
