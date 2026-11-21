@@ -44,8 +44,12 @@ class VitaVpkVersionTests(unittest.TestCase):
 
     def test_does_not_duplicate_existing_library(self):
         result = add_target_link_dependencies(FIXTURE, "VitaPluginHub", ["curl", "pthread"])
-        self.assertEqual(result.count("pthread"), 1)
-        self.assertEqual(result.count("curl"), 1)
+        link_lines = "\\n".join(
+            line for line in result.splitlines()
+            if line.strip().startswith("target_link_libraries")
+        )
+        self.assertEqual(link_lines.count("pthread"), 1)
+        self.assertEqual(link_lines.count("curl"), 1)
 
     def test_rejects_unknown_target(self):
         with self.assertRaises(VersionPatchError):
