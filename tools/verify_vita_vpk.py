@@ -61,7 +61,7 @@ def parse_sfo(data: bytes) -> Dict[str, str]:
         raw = data[value_start:value_start + length]
         if fmt == 0x0204:
             try:
-                value = raw.split(b"\\0", 1)[0].decode("utf-8")
+                value = raw.split(b"\0", 1)[0].decode("utf-8")
             except UnicodeDecodeError as exc:
                 raise VpkError("PARAM.SFO value is not UTF-8 for %s" % key) from exc
         elif fmt == 0x0404 and length == 4:
