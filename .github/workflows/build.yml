@@ -67,7 +67,7 @@ jobs:
 
       - name: Configure
         run: |
-          python3 tools/set_vita_vpk_version.py CMakeLists.txt --version 00.21 --target VitaPluginHub --link-library zstd --link-library pthread
+          python3 tools/set_vita_vpk_version.py CMakeLists.txt --version 00.21 --target VitaPluginHub --signature plain --link-library zstd --link-library pthread
           cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="$VITASDK/share/vita.toolchain.cmake"
 
       - name: Build VPK
