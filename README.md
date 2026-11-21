@@ -6,26 +6,34 @@
 - Reference device: PS Vita OLED (PCH-1000), firmware 3.65 Ensō, SD2Vita + Sony Memory Card
 - Interface language: English
 - Application title ID: `VPHB00001`
-- Development version: `0.2.1-dev`
+- Planned release line: `0.2.1`
 
-## Project status
+## Repository status
 
-This repository contains the complete VitaPluginHub source project. The current development build provides an offline catalog, online GitHub release lookup, guarded official-asset downloads, read-only taiHEN and Adrenaline inspection, and timestamped configuration backups.
+The dedicated repository has been initialized. The complete source snapshot and local validation results are prepared in the accompanying development workspace, but the application source tree has not yet been committed here.
 
-**It is not yet a stable or console-validated release.** Automatic plugin installation, archive extraction, taiHEN config editing, PSP plugin-list editing and rollback of installed plugin binaries remain disabled until exact install plans and device tests are complete.
+No VPK release is published. The application still requires a real VitaSDK cross-build and a smoke test on a PS Vita before a release candidate can be declared.
+
+## Product scope
+
+- Offline-first curated catalog of official upstream plugin projects.
+- Separate platform handling for Vita taiHEN and Adrenaline/PSP.
+- GitHub release lookup and guarded download of official release assets.
+- Read-only taiHEN and Adrenaline configuration inspection.
+- Timestamped configuration backups.
+- Planned safe plugin management with dependency, conflict and rollback handling.
+
+## Safety policy
+
+- Downloads are saved for review and are never installed or executed automatically in the current development build.
+- Configuration inspection is read-only.
+- Vita taiHEN and Adrenaline/PSP plugin systems are kept separate.
+- Compatibility metadata is advisory and must be checked against upstream documentation.
 
 ## Build
 
-The project uses VitaSDK, CMake, libvita2d, libcurl and OpenSSL. See the source package's `README.md` and `.github/workflows/build.yml` for the reproducible build instructions.
-
-## Safety model
-
-- Vita taiHEN and Adrenaline/PSP plugins are treated as separate platforms.
-- Downloads are restricted to official GitHub releases belonging to the repository listed in the catalog.
-- Downloads are saved for review; they are never installed or executed automatically.
-- Configuration inspection is read-only. Backups are created before any future write operation.
-- Compatibility metadata is advisory and must be verified against upstream documentation.
+The source uses VitaSDK, CMake, libvita2d, libcurl and OpenSSL. Build instructions will be added with the committed source tree.
 
 ## License
 
-The VitaPluginHub source is licensed under GPL-3.0-or-later. Third-party plugins remain the property of their respective authors and retain their own licenses.
+The VitaPluginHub source is licensed under the MIT License. Third-party plugins remain the property of their respective authors and retain their own licenses.
