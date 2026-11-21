@@ -57,7 +57,7 @@ jobs:
           cat .payload/vph-source-*.b64 | base64 --decode | tar -xz --no-same-owner -C .
 
       - name: Install VitaSDK dependencies
-        run: vdpm install libvita2d curl openssl zlib
+        run: vdpm install libvita2d curl zlib
 
       - name: Fetch CA certificate bundle
         run: curl --fail --location --proto '=https' --tlsv1.2 --retry 3 https://curl.se/ca/cacert.pem --output cacert.pem
