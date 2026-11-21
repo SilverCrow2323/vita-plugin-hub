@@ -58,6 +58,7 @@ class VitaVpkVersionTests(unittest.TestCase):
         )
         self.assertEqual(link_lines.count("pthread"), 1)
         self.assertEqual(link_lines.count("curl"), 1)
+        self.assertFalse(any("PRIVATE curl" in line or line.endswith(" curl)") for line in link_lines.splitlines()))
 
     def test_rejects_unknown_signature(self):
         with self.assertRaises(VersionPatchError):
