@@ -59,12 +59,15 @@ def parse_sfo(data: bytes) -> Dict[str, str]:
         if length > max_length or value_start + length > len(data):
             raise VpkError("PARAM.SFO value is outside the data table")
         raw = data[value_start:value_start + length]
-        if fmt != 0x0204:
-            raise VpkError("unexpected PARAM.SFO value format for %s" % key)
-        try:
-            value = raw.split(b"\0", 1)[0].decode("utf-8")
-        except UnicodeDecodeError as exc:
-            raise VpkError("PARAM.SFO value is not UTF-8 for %s" % key) from exc
+        if fmt == 0x0204:
+            try:
+                value = raw.split(b"\\0", 1)[0].decode("utf-8")
+            except UnicodeDecodeError as exc:
+                raise VpkError("PARAM.SFO value is not UTF-8 for %s" % key) from exc
+        elif fmt == 0x0404 and length == 4:
+            value = struct.unpack("<I", raw)[0]
+        else:
+            raise VpkError("unsupported PARAM.SFO value format for %s: 0x%04x" % (key, fmt))
         if key in values:
             raise VpkError("duplicate PARAM.SFO key: %s" % key)
         values[key] = value
