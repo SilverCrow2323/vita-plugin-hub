@@ -50,7 +50,7 @@ jobs:
       - name: Install VitaSDK dependencies
         run: vdpm install libvita2d curl zlib zstd
       - name: Fetch CA certificate bundle
-        run: curl --fail --location --proto '=https' --tlsv1.2 --retry 3 https://curl.se/ca/cacert.pem --output cacert.pem
+        run: curl --fail --location --proto '=https' --tlsv1.2 --retry 3 https://curl.se/ca/cacert.pem --output .vph-source/cacert.pem
       - name: Configure
         run: |
           python3 tools/set_vita_vpk_version.py .vph-source/CMakeLists.txt --version 00.21 --target VitaPluginHub --signature plain --link-library zstd --link-library pthread --link-library SceAppMgr_stub
