@@ -1,51 +1,40 @@
 name: Validate, build and publish VitaPluginHub
-
 on:
   push:
-    branches: [main]
+    branches: [main, "feat/**"]
     tags: ['v*']
   pull_request:
   workflow_dispatch:
-
 permissions:
   contents: write
-
 jobs:
   validate:
-    name: Validate catalog and host tests
+    name: Validate catalog, reconstruct source and host tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Restore application source
-        shell: bash
-        run: |
-          set -euo pipefail
-          cat .payload/vph-source-*.b64 | base64 --decode | tar -xz --no-same-owner -C .
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
-
+          python-version: '3.11'
+      - name: Test safe source reconstruction
+        run: python3 -m unittest tools/test_reconstruct_source.py -v
+      - name: Restore application source safely
+        run: python3 tools/reconstruct_source.py --payload-dir .payload --output .vph-source
       - name: Validate plugin catalog
         run: python3 tools/validate_catalog.py
-
       - name: Test VitaSDK package-version normalization
         run: python3 -m unittest tools/test_vita_vpk_version.py -v
-
       - name: Test Vita VPK package verifier
         run: python3 -m unittest tools/test_vita_vpk.py -v
-
       - name: Run host-side smoke tests
+        working-directory: .vph-source
         run: tools/test_host.sh
-
       - name: Validate JSON documents
         run: |
           python3 -m json.tool catalog/plugins.json >/dev/null
           python3 -m json.tool catalog/plugin.schema.json >/dev/null
-
   build:
     name: Build Vita VPK
     runs-on: ubuntu-latest
@@ -55,43 +44,31 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Restore application source
-        shell: bash
-        run: |
-          set -euo pipefail
-          cat .payload/vph-source-*.b64 | base64 --decode | tar -xz --no-same-owner -C .
-
+      - name: Restore application source safely
+        run: python3 tools/reconstruct_source.py --payload-dir .payload --output .vph-source
       - name: Install VitaSDK dependencies
         run: vdpm install libvita2d curl zlib zstd
-
       - name: Fetch CA certificate bundle
         run: curl --fail --location --proto '=https' --tlsv1.2 --retry 3 https://curl.se/ca/cacert.pem --output cacert.pem
-
       - name: Configure
         run: |
-          python3 tools/set_vita_vpk_version.py CMakeLists.txt --version 00.21 --target VitaPluginHub --signature plain --link-library zstd --link-library pthread --link-library SceAppMgr_stub
-          cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="$VITASDK/share/vita.toolchain.cmake"
-
+          python3 tools/set_vita_vpk_version.py .vph-source/CMakeLists.txt --version 00.21 --target VitaPluginHub --signature plain --link-library zstd --link-library pthread --link-library SceAppMgr_stub
+          cmake -S .vph-source -B .vph-source/build -DCMAKE_TOOLCHAIN_FILE="$VITASDK/share/vita.toolchain.cmake"
       - name: Build VPK
-        run: cmake --build build --parallel
-
+        run: cmake --build .vph-source/build --parallel
       - name: Verify VPK layout, assets and SFO identity
-        run: python3 tools/verify_vita_vpk.py build/VitaPluginHub.vpk --title-id VPHB00001 --title VitaPluginHub --app-version 00.21
-
+        run: python3 tools/verify_vita_vpk.py .vph-source/build/VitaPluginHub.vpk --title-id VPHB00001 --title VitaPluginHub --app-version 00.21
       - name: Create SHA-256 checksum
-        run: cd build && sha256sum VitaPluginHub.vpk > VitaPluginHub.vpk.sha256
-
+        run: cd .vph-source/build && sha256sum VitaPluginHub.vpk > VitaPluginHub.vpk.sha256
       - name: Upload VPK build artifact
         uses: actions/upload-artifact@v4
         with:
           name: VitaPluginHub-VPK
           path: |
-            build/VitaPluginHub.vpk
-            build/VitaPluginHub.vpk.sha256
+            .vph-source/build/VitaPluginHub.vpk
+            .vph-source/build/VitaPluginHub.vpk.sha256
           if-no-files-found: error
           retention-days: 30
-
   publish:
     name: Publish GitHub release
     if: startsWith(github.ref, 'refs/tags/v')
@@ -100,13 +77,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Download VPK build artifact
         uses: actions/download-artifact@v4
         with:
           name: VitaPluginHub-VPK
           path: release-assets
-
       - name: Publish release assets
         uses: softprops/action-gh-release@v2
         with:

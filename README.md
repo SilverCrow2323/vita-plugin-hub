@@ -39,7 +39,7 @@ From the repository root:
 
 ```bash
 mkdir -p /tmp/vitapluginhub-source
-cat .payload/vph-source-*.b64 | base64 --decode | tar -xz --no-same-owner -C /tmp/vitapluginhub-source
+python3 tools/reconstruct_source.py --payload-dir .payload --output /tmp/vitapluginhub-source
 cd /tmp/vitapluginhub-source
 ```
 
