@@ -50,7 +50,7 @@ def make_vpk(path, title_id="VPHB00001", extra=None):
     }
     if extra:
         files.update(extra)
-    with zipfile.ZipFile(path, "w") as archive:
+    with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         for name, payload in files.items():
             archive.writestr(name, payload)
 
