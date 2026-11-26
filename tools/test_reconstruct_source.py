@@ -36,6 +36,19 @@ def write_parts(root, archive):
     (root / "vph-source-01.b64").write_bytes(encoded[split:])
 
 class SafeReconstructionTests(unittest.TestCase):
+    def test_extracts_regular_source_tree(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); payload = root / "payload"; output = root / "source"
+            payload.mkdir()
+            write_parts(payload, make_archive([
+                ("./CMakeLists.txt", b"project(VitaPluginHub)", "file"),
+                ("src/", b"", "dir"),
+                ("src/main.c", b"int main(void){return 0;}", "file"),
+            ]))
+            paths = reconstruct(payload, output)
+            self.assertIn("CMakeLists.txt", paths)
+            self.assertEqual((output / "src/main.c").read_bytes(), b"int main(void){return 0;}")
+
     def run_fixture(self, entries, expect_error=None):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp); payload = root / "payload"; output = root / "source"
@@ -46,15 +59,6 @@ class SafeReconstructionTests(unittest.TestCase):
                     reconstruct(payload, output)
             else:
                 return reconstruct(payload, output), output
-
-    def test_extracts_regular_source_tree(self):
-        paths, output = self.run_fixture([
-            ("./CMakeLists.txt", b"project(VitaPluginHub)", "file"),
-            ("src/", b"", "dir"),
-            ("src/main.c", b"int main(void){return 0;}", "file"),
-        ])
-        self.assertIn("CMakeLists.txt", paths)
-        self.assertEqual((output / "src/main.c").read_bytes(), b"int main(void){return 0;}")
 
     def test_rejects_parent_traversal(self):
         self.run_fixture([
