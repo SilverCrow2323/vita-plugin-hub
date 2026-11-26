@@ -40,7 +40,9 @@ def read_parts(payload_dir: Path) -> bytes:
     return archive
 
 def normalized_member_name(name: str) -> str:
-    if name in (".", "./", ""):\n        return ""\n    if not name or "\\" in name or name.startswith("/"):
+    if name in (".", "./", ""):
+        return ""
+    if not name or "\\" in name or name.startswith("/"):
         raise ReconstructionError(f"Unsafe archive path: {name!r}")
     while name.startswith("./"):
         name = name[2:]
