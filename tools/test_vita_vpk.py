@@ -102,6 +102,24 @@ class VitaVpkVerificationTests(unittest.TestCase):
             with self.assertRaisesRegex(VpkError, "duplicate VPK paths"):
                 verify_vpk(str(path), "VPHB00001", "VitaPluginHub", "00.21")
 
+    def test_rejects_total_expanded_payload_over_budget(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "oversized.vpk"
+            make_vpk(path, extra={
+                "eboot.bin": b"E" * (24 * 1024 * 1024),
+                "sce_sys/icon0.png": b"\\x89PNG\\r\\n\\x1a\\n" + b"I" * (24 * 1024 * 1024),
+                "cacert.pem": b"-----BEGIN CERTIFICATE-----\\n" + b"C" * (24 * 1024 * 1024),
+            })
+            with self.assertRaisesRegex(VpkError, "expanded contents"):
+                verify_vpk(str(path), "VPHB00001", "VitaPluginHub", "00.21")
+
+    def test_rejects_single_entry_over_budget(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "oversized-entry.vpk"
+            make_vpk(path, extra={"eboot.bin": b"E" * (32 * 1024 * 1024 + 1)})
+            with self.assertRaisesRegex(VpkError, "large VPK entry"):
+                verify_vpk(str(path), "VPHB00001", "VitaPluginHub", "00.21")
+
     def test_rejects_symbolic_link_entries(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "app.vpk"

@@ -18,6 +18,9 @@ SFO_ENTRY = struct.Struct("<HHIII")
 SFO_MAGIC = b"\x00PSF"
 SFO_VERSION = 0x00000101
 PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
+MAX_VPK_BYTES = 64 * 1024 * 1024
+MAX_VPK_UNCOMPRESSED_BYTES = 64 * 1024 * 1024
+MAX_VPK_ENTRY_BYTES = 32 * 1024 * 1024
 REQUIRED_FILES = {
     "sce_sys/param.sfo",
     "sce_sys/icon0.png",
@@ -76,6 +79,11 @@ def parse_sfo(data: bytes) -> Dict[str, str]:
 
 def verify_vpk(path: str, title_id: str, title: str, app_version: str) -> Dict[str, object]:
     try:
+        if os.path.getsize(path) > MAX_VPK_BYTES:
+            raise VpkError("VPK archive exceeds the 64 MiB package limit")
+    except OSError as exc:
+        raise VpkError("cannot stat VPK: %s" % exc) from exc
+    try:
         archive = zipfile.ZipFile(path, "r")
     except (OSError, zipfile.BadZipFile) as exc:
         raise VpkError("cannot open VPK: %s" % exc) from exc
@@ -90,6 +98,7 @@ def verify_vpk(path: str, title_id: str, title: str, app_version: str) -> Dict[s
             extra = sorted(set(names) - REQUIRED_FILES)
             raise VpkError("VPK contents mismatch (missing=%r extra=%r)" % (missing, extra))
 
+        total_uncompressed = 0
         for info in infos:
             entry_path = PurePosixPath(info.filename)
             if info.filename.startswith("/") or "\\" in info.filename or ".." in entry_path.parts:
@@ -97,8 +106,13 @@ def verify_vpk(path: str, title_id: str, title: str, app_version: str) -> Dict[s
             mode = (info.external_attr >> 16) & 0xFFFF
             if stat.S_ISLNK(mode):
                 raise VpkError("symbolic links are not allowed: %s" % info.filename)
-            if info.file_size > 32 * 1024 * 1024:
+            if info.flag_bits & 0x1:
+                raise VpkError("encrypted VPK entries are not supported: %s" % info.filename)
+            if info.file_size > MAX_VPK_ENTRY_BYTES:
                 raise VpkError("unexpectedly large VPK entry: %s" % info.filename)
+            total_uncompressed += info.file_size
+            if total_uncompressed > MAX_VPK_UNCOMPRESSED_BYTES:
+                raise VpkError("VPK expanded contents exceed the 64 MiB total limit")
 
         bad_member = archive.testzip()
         if bad_member is not None:
