@@ -1,4 +1,5 @@
 import struct
+import stat
 import sys
 import tempfile
 import unittest
@@ -90,6 +91,39 @@ class VitaVpkVerificationTests(unittest.TestCase):
             path = Path(directory) / "app.vpk"
             make_vpk(path, extra={"../outside": b"bad"})
             with self.assertRaisesRegex(VpkError, "contents mismatch|unsafe VPK path"):
+                verify_vpk(str(path), "VPHB00001", "VitaPluginHub", "00.21")
+
+    def test_rejects_duplicate_archive_entries(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "app.vpk"
+            make_vpk(path)
+            with zipfile.ZipFile(path, "a") as archive:
+                archive.writestr("plugins.json", b'{"plugins":["unexpected"]}')
+            with self.assertRaisesRegex(VpkError, "duplicate VPK paths"):
+                verify_vpk(str(path), "VPHB00001", "VitaPluginHub", "00.21")
+
+    def test_rejects_symbolic_link_entries(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "app.vpk"
+            values = {
+                "TITLE": "VitaPluginHub", "TITLE_ID": "VPHB00001",
+                "APP_VER": "00.21", "VERSION": "00.00", "ATTRIBUTE": 0x00008000,
+            }
+            files = {
+                "sce_sys/param.sfo": make_sfo(values),
+                "sce_sys/icon0.png": b"\\x89PNG\\r\\n\\x1a\\n" + b"\\0" * 24,
+                "eboot.bin": b"SELF" + b"\\0" * 96,
+                "plugins.json": b'{"plugins":[]}',
+                "cacert.pem": b"-----BEGIN CERTIFICATE-----\\nAAAA\\n-----END CERTIFICATE-----\\n",
+            }
+            with zipfile.ZipFile(path, "w") as archive:
+                for name, payload in files.items():
+                    info = zipfile.ZipInfo(name)
+                    if name == "eboot.bin":
+                        info.create_system = 3
+                        info.external_attr = (stat.S_IFLNK | 0o777) << 16
+                    archive.writestr(info, payload)
+            with self.assertRaisesRegex(VpkError, "symbolic links are not allowed"):
                 verify_vpk(str(path), "VPHB00001", "VitaPluginHub", "00.21")
 
 
