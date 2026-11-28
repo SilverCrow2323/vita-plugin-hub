@@ -18,6 +18,9 @@ def make_tar(entries):
                 data = value
                 info.size = len(data)
                 archive.addfile(info, io.BytesIO(data))
+            elif kind == "dir":
+                info.type = tarfile.DIRTYPE
+                archive.addfile(info)
             elif kind == "symlink":
                 info.type = tarfile.SYMTYPE
                 info.linkname = value
@@ -50,7 +53,7 @@ class SourceSnapshotTests(unittest.TestCase):
     def test_accepts_intact_snapshot(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            archive = make_tar([("src/main.c", "file", b"int main(void) { return 0; }\n")])
+            archive = make_tar([(".", "dir", b""), ("src/main.c", "file", b"int main(void) { return 0; }\n")])
             payload, manifest = write_snapshot(root, archive)
             self.assertEqual(verify_snapshot(payload, manifest), [])
 
