@@ -58,8 +58,13 @@ def inspect_tar_archive(payload: bytes) -> list[str]:
         ):
             errors.append(f"unsafe source archive path: {name!r}")
             continue
-        if normalized in ("", "."):
-            errors.append("source archive contains an empty/root member")
+        if normalized == ".":
+            if member.isdir():
+                if normalized in seen:
+                    errors.append("duplicate source archive root directory")
+                seen.add(normalized)
+                continue
+            errors.append("source archive root member is not a directory")
             continue
         if normalized in seen:
             errors.append(f"duplicate source archive member: {normalized}")
