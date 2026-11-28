@@ -18,6 +18,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Verify source snapshot before extraction
+        run: python3 tools/verify_source_snapshot.py
+
       - name: Restore application source
         shell: bash
         run: |
@@ -28,6 +31,9 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
+
+      - name: Test source snapshot verifier
+        run: python3 -m unittest tools/test_source_snapshot.py -v
 
       - name: Validate plugin catalog
         run: python3 tools/validate_catalog.py
@@ -55,6 +61,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Verify source snapshot before extraction
+        run: python3 tools/verify_source_snapshot.py
 
       - name: Restore application source
         shell: bash
@@ -110,11 +119,11 @@ jobs:
       - name: Publish release assets
         uses: softprops/action-gh-release@v2
         with:
-          name: VitaPluginHub ${{ github.ref_name }}
+          name: VitaPluginHub \${{ github.ref_name }}
           body_path: CHANGELOG.md
           files: |
             release-assets/VitaPluginHub.vpk
             release-assets/VitaPluginHub.vpk.sha256
           fail_on_unmatched_files: true
           generate_release_notes: true
-          prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
+          prerelease: \${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
